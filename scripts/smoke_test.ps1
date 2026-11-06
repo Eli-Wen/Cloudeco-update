@@ -5,11 +5,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Test-Path -LiteralPath $ImagePath)) {
-    throw "Test image not found: $ImagePath"
+$imageFile = Get-Item -LiteralPath $ImagePath -ErrorAction Stop
+if ($imageFile.PSIsContainer) {
+    throw "Test image path is a directory: $ImagePath"
 }
 
-$imageBytes = [System.IO.File]::ReadAllBytes($ImagePath)
+$imageBytes = [System.IO.File]::ReadAllBytes($imageFile.FullName)
 $payload = @{
     uuid  = [guid]::NewGuid().ToString()
     image = [Convert]::ToBase64String($imageBytes)
