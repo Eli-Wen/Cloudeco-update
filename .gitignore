@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Model weights and local test assets with uncertain redistribution rights
+model/*.pt
+model/*.onnx
+
+# Secrets and local runtime configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kubeconfig
+infra/ansible/inventory.local.ini
+
+# Terraform local state and variable values
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+tfplan
+
+# Generated logs and temporary results
+*.log
+tmp/
