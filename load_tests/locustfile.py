@@ -17,18 +17,24 @@ def load_image_as_base64() -> str:
     return base64.b64encode(IMAGE_PATH.read_bytes()).decode("utf-8")
 
 
-class PredictionUser(HttpUser):
+class ImageApiUser(HttpUser):
     wait_time = between(1, 2)
 
     def on_start(self) -> None:
         self.image_base64 = load_image_as_base64()
 
-    @task
-    def predict(self) -> None:
-        payload = {
+    def request_payload(self) -> dict[str, str]:
+        return {
             "uuid": str(uuid4()),
             "image": self.image_base64,
         }
+
+
+class PredictionUser(ImageApiUser):
+
+    @task
+    def predict(self) -> None:
+        payload = self.request_payload()
         with self.client.post(
             "/api/predict",
             json=payload,
@@ -44,5 +50,29 @@ class PredictionUser(HttpUser):
                 response.failure("Response uuid does not match the request")
             elif not isinstance(body.get("boxes"), list):
                 response.failure("Response boxes is not a list")
+            else:
+                response.success()
+
+
+class AnnotationUser(ImageApiUser):
+
+    @task
+    def annotate(self) -> None:
+        payload = self.request_payload()
+        with self.client.post(
+            "/api/annotate",
+            json=payload,
+            name="POST /api/annotate",
+            catch_response=True,
+        ) as response:
+            if response.status_code != 200:
+                response.failure(f"Unexpected status: {response.status_code}")
+                return
+
+            body = response.json()
+            if body.get("uuid") != payload["uuid"]:
+                response.failure("Response uuid does not match the request")
+            elif not isinstance(body.get("image"), str) or not body["image"]:
+                response.failure("Response image is missing")
             else:
                 response.success()
