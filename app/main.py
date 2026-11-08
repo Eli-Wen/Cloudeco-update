@@ -1,9 +1,12 @@
 """FastAPI entry point for wildfire and smoke inference."""
 
-import logging
 from contextlib import asynccontextmanager
+from time import perf_counter
+from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.model_runner import (
     InvalidImageError,
@@ -11,9 +14,8 @@ from app.model_runner import (
     encode_image_to_base64,
     model_runner,
 )
+from app.observability import logger, record_http_request, record_inference_timings
 from app.schemas import AnnotateResponse, HealthResponse, PredictRequest, PredictResponse
-
-logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -25,6 +27,26 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="CloudEco Wildfire Detection API", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def observe_request(request: Request, call_next):
+    """Attach a correlation ID and observe completed API requests."""
+    request_id = request.headers.get("X-Request-ID", str(uuid4()))
+    started_at = perf_counter()
+    response = await call_next(request)
+    duration_ms = (perf_counter() - started_at) * 1000
+
+    response.headers["X-Request-ID"] = request_id
+    if request.url.path != "/metrics":
+        record_http_request(
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+        )
+    return response
 
 
 @app.get("/")
@@ -39,6 +61,12 @@ def health_check() -> HealthResponse:
     return HealthResponse(status="ok", model_loaded=True)
 
 
+@app.get("/metrics", include_in_schema=False)
+def metrics() -> Response:
+    """Expose Prometheus-format metrics for future cluster scraping."""
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/api/predict", response_model=PredictResponse)
 def predict(request: PredictRequest) -> PredictResponse:
     try:
@@ -47,7 +75,7 @@ def predict(request: PredictRequest) -> PredictResponse:
     except InvalidImageError as error:
         raise HTTPException(status_code=400, detail="invalid image payload") from error
     except Exception as error:
-        logger.exception("Prediction failed for request %s", request.uuid)
+        logger.exception("Prediction failed")
         raise HTTPException(status_code=500, detail="inference failed") from error
 
     detections: list[str] = []
@@ -68,14 +96,23 @@ def predict(request: PredictRequest) -> PredictResponse:
                 }
             )
 
+    speed_preprocess_ms = float(result.speed.get("preprocess", 0.0))
+    speed_inference_ms = float(result.speed.get("inference", 0.0))
+    speed_postprocess_ms = float(result.speed.get("postprocess", 0.0))
+    record_inference_timings(
+        preprocess_ms=speed_preprocess_ms,
+        inference_ms=speed_inference_ms,
+        postprocess_ms=speed_postprocess_ms,
+    )
+
     return PredictResponse(
         uuid=request.uuid,
         count=len(detections),
         detections=detections,
         boxes=boxes,
-        speed_preprocess_ms=float(result.speed.get("preprocess", 0.0)),
-        speed_inference_ms=float(result.speed.get("inference", 0.0)),
-        speed_postprocess_ms=float(result.speed.get("postprocess", 0.0)),
+        speed_preprocess_ms=speed_preprocess_ms,
+        speed_inference_ms=speed_inference_ms,
+        speed_postprocess_ms=speed_postprocess_ms,
     )
 
 
@@ -89,7 +126,7 @@ def annotate(request: PredictRequest) -> AnnotateResponse:
     except InvalidImageError as error:
         raise HTTPException(status_code=400, detail="invalid image payload") from error
     except Exception as error:
-        logger.exception("Annotation failed for request %s", request.uuid)
+        logger.exception("Annotation failed")
         raise HTTPException(status_code=500, detail="annotation failed") from error
 
     return AnnotateResponse(uuid=request.uuid, image=annotated_base64)
