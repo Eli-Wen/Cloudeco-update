@@ -1,0 +1,21 @@
+# Copy this file to terraform.tfvars before running terraform plan.
+# terraform.tfvars stays local and is ignored by Git.
+
+project_id = "cloudeco-devops"
+region     = "australia-southeast1"
+
+node_zones = [
+  "australia-southeast1-a",
+  "australia-southeast1-b",
+  "australia-southeast1-c",
+]
+
+cluster_name       = "cloudeco-gke"
+node_pool_name     = "cloudeco-workers"
+node_machine_type  = "n2-custom-4-8192"
+node_count_per_zone = 1
+
+network_cidr       = "10.20.0.0/20"
+pod_cidr           = "10.24.0.0/16"
+service_cidr       = "10.25.0.0/20"
+master_ipv4_cidr   = "172.16.0.0/28"

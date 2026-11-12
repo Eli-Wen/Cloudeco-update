@@ -24,8 +24,23 @@ infra/ansible/inventory.local.ini
 *.tfstate
 *.tfstate.*
 *.tfvars
+!infra/terraform.tfvars.example
 tfplan
+*.tfplan
 
 # Generated logs and temporary results
 *.log
 tmp/
+
+# Disposable GKE CreateCluster 400 investigation artefacts: probe Terraform,
+# saved plans, command output and final local report. Never commit these.
+infra/_debug/
+
+# Local working notes and AI-assisted learning artefacts; not part of the runnable project
+HANDOFF.md
+INTERVIEW_NOTES.md
+PROJECT_FACTS.md
+TROUBLESHOOTING.md
+gpt图解各种知识/
+目标架构图/
+排障报告/
