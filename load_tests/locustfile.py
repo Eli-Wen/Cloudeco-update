@@ -2,31 +2,36 @@
 
 import base64
 import os
+from itertools import cycle
 from pathlib import Path
 from uuid import uuid4
 
 from locust import HttpUser, between, task
 
-DEFAULT_IMAGE_PATH = Path(__file__).resolve().parent.parent / "test_assets" / "image0.jpeg"
-IMAGE_PATH = Path(os.environ.get("CLOUDECO_TEST_IMAGE", DEFAULT_IMAGE_PATH))
+DEFAULT_IMAGE_DIR = Path(__file__).resolve().parent.parent / "test_assets"
+IMAGE_DIR = Path(os.environ.get("CLOUDECO_TEST_IMAGE_DIR", DEFAULT_IMAGE_DIR))
+TEST_IMAGE_NAMES = tuple(f"image{index}.jpeg" for index in range(10))
 
 
-def load_image_as_base64() -> str:
-    if not IMAGE_PATH.is_file():
-        raise FileNotFoundError(f"Locust test image is missing: {IMAGE_PATH}")
-    return base64.b64encode(IMAGE_PATH.read_bytes()).decode("utf-8")
+def load_images_as_base64() -> tuple[str, ...]:
+    """Load ten fixed test images once, before Locust begins sending requests."""
+    image_paths = tuple(IMAGE_DIR / name for name in TEST_IMAGE_NAMES)
+    missing = [str(path) for path in image_paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"Locust test images are missing: {', '.join(missing)}")
+    return tuple(base64.b64encode(path.read_bytes()).decode("utf-8") for path in image_paths)
 
 
 class ImageApiUser(HttpUser):
     wait_time = between(1, 2)
 
     def on_start(self) -> None:
-        self.image_base64 = load_image_as_base64()
+        self.image_base64_cycle = cycle(load_images_as_base64())
 
     def request_payload(self) -> dict[str, str]:
         return {
             "uuid": str(uuid4()),
-            "image": self.image_base64,
+            "image": next(self.image_base64_cycle),
         }
 
 
