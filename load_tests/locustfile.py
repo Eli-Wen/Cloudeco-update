@@ -11,6 +11,12 @@ from locust import HttpUser, between, task
 DEFAULT_IMAGE_DIR = Path(__file__).resolve().parent.parent / "test_assets"
 IMAGE_DIR = Path(os.environ.get("CLOUDECO_TEST_IMAGE_DIR", DEFAULT_IMAGE_DIR))
 TEST_IMAGE_NAMES = tuple(f"image{index}.jpeg" for index in range(10))
+TEST_SCENARIO = os.environ.get("CLOUDECO_TEST_SCENARIO", "mixed")
+
+if TEST_SCENARIO not in {"mixed", "predict", "annotate"}:
+    raise ValueError(
+        "CLOUDECO_TEST_SCENARIO must be one of: mixed, predict, annotate"
+    )
 
 
 def load_images_as_base64() -> tuple[str, ...]:
@@ -23,6 +29,7 @@ def load_images_as_base64() -> tuple[str, ...]:
 
 
 class ImageApiUser(HttpUser):
+    abstract = True
     wait_time = between(1, 2)
 
     def on_start(self) -> None:
@@ -36,6 +43,7 @@ class ImageApiUser(HttpUser):
 
 
 class PredictionUser(ImageApiUser):
+    abstract = False
 
     @task
     def predict(self) -> None:
@@ -60,6 +68,7 @@ class PredictionUser(ImageApiUser):
 
 
 class AnnotationUser(ImageApiUser):
+    abstract = False
 
     @task
     def annotate(self) -> None:
@@ -81,3 +90,9 @@ class AnnotationUser(ImageApiUser):
                 response.failure("Response image is missing")
             else:
                 response.success()
+
+
+if TEST_SCENARIO == "predict":
+    AnnotationUser.weight = 0
+elif TEST_SCENARIO == "annotate":
+    PredictionUser.weight = 0

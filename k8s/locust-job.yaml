@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cloudeco-locust
+  labels:
+    app.kubernetes.io/name: cloudeco-locust
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudeco-locust
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: locust
+          image: australia-southeast1-docker.pkg.dev/cloudeco-devops/cloudeco-images/cloudeco-locust:5fb2d35041b52a8180f2f77aba823f124e44d930
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLOUDECO_TEST_IMAGE_DIR
+              value: /test_assets
+            - name: CLOUDECO_TEST_SCENARIO
+              value: mixed
+          args:
+            - -f
+            - /mnt/locust/locustfile.py
+            - --headless
+            - --host=http://cloudeco-api:80
+            - --users=12
+            - --spawn-rate=2
+            - --run-time=8m
+            - --only-summary
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
