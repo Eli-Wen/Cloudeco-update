@@ -6,7 +6,6 @@ __pycache__/
 venv/
 
 # Model weights and local test assets with uncertain redistribution rights
-model/*.pt
 model/*.onnx
 test_assets/*
 
