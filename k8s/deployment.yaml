@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cloudeco-api
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: cloudeco-api
@@ -14,14 +14,35 @@ spec:
       labels:
         app.kubernetes.io/name: cloudeco-api
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: cloudeco-api
       containers:
         - name: api
-          image: cloudeco-api:dev
+          image: australia-southeast1-docker.pkg.dev/cloudeco-devops/cloudeco-images/cloudeco-api:4a037e345cfb6e445d060e625a02124f405ecef9
           imagePullPolicy: IfNotPresent
+          env:
+            - name: YOLO_CONFIG_DIR
+              value: /tmp/Ultralytics
           ports:
             - name: http
               containerPort: 8000
               protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
           startupProbe:
             httpGet:
               path: /health
@@ -42,8 +63,14 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: "4"
-              memory: 3Gi
+              cpu: "1"
+              memory: 2Gi
             limits:
-              cpu: "4"
+              cpu: "1"
               memory: 3Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

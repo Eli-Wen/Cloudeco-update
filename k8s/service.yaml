@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cloudeco-api
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: cloudeco-api
   ports:
@@ -13,4 +13,3 @@ spec:
       protocol: TCP
       port: 80
       targetPort: http
-      nodePort: 30080
