@@ -43,13 +43,13 @@ jobs:
           terraform -chdir=infra init -backend=false
           terraform -chdir=infra validate
 
-      - name: Build API image
-        run: docker build --tag cloudeco-api:ci .
+      - name: Build API image archive
+        run: docker buildx build --output type=docker,dest=/tmp/cloudeco-api.tar .
 
-      - name: Scan API image
+      - name: Scan API image archive
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: cloudeco-api:ci
+          input: /tmp/cloudeco-api.tar
           format: table
           exit-code: "1"
           ignore-unfixed: true
