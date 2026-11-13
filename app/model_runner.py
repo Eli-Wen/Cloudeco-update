@@ -2,6 +2,7 @@
 
 import base64
 import os
+from threading import Lock
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,7 @@ class ModelRunner:
     def __init__(self, model_path: Path = MODEL_PATH) -> None:
         self.model_path = model_path
         self.model: Any | None = None
+        self._inference_lock = Lock()
 
     @property
     def is_loaded(self) -> bool:
@@ -55,11 +57,15 @@ class ModelRunner:
         if self.model is None:
             raise RuntimeError("Model has not been loaded")
 
-        results = self.model(
-            image_array,
-            imgsz=get_inference_image_size(),
-            verbose=False,
-        )
+        # Ultralytics' predictor keeps mutable request state. FastAPI runs
+        # synchronous endpoints in a thread pool, so sharing it without a
+        # lock can race model setup and inflate memory usage.
+        with self._inference_lock:
+            results = self.model(
+                image_array,
+                imgsz=get_inference_image_size(),
+                verbose=False,
+            )
         return results[0]
 
 
