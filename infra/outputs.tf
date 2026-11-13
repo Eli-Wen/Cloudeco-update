@@ -22,3 +22,13 @@ output "subnetwork_name" {
   description = "Subnet name for CloudEco GKE nodes."
   value       = google_compute_subnetwork.gke.name
 }
+
+output "github_actions_service_account" {
+  description = "Service account impersonated by the CloudEco GitHub Actions deployment workflow."
+  value       = google_service_account.github_actions_deployer.email
+}
+
+output "github_actions_workload_identity_provider" {
+  description = "Fully qualified Workload Identity Provider resource for the GitHub Actions auth step."
+  value       = google_iam_workload_identity_pool_provider.github.name
+}

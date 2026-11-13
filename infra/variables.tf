@@ -67,3 +67,9 @@ variable "node_count_per_zone" {
   type        = number
   default     = 1
 }
+
+variable "github_repository" {
+  description = "GitHub owner/repository allowed to obtain the CI/CD deployment identity."
+  type        = string
+  default     = "Eli-Wen/Cloudeco-update"
+}
