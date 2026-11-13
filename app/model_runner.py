@@ -1,6 +1,7 @@
 """YOLO lifecycle and image conversion boundary for the API layer."""
 
 import base64
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,20 @@ import numpy as np
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "model" / "fire_m.pt"
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
+DEFAULT_INFERENCE_IMAGE_SIZE = 640
+
+
+def get_inference_image_size() -> int:
+    """Read a validated square input size for YOLO inference."""
+    raw_value = os.getenv("YOLO_INFERENCE_IMAGE_SIZE", str(DEFAULT_INFERENCE_IMAGE_SIZE))
+    try:
+        image_size = int(raw_value)
+    except ValueError as error:
+        raise ValueError("YOLO_INFERENCE_IMAGE_SIZE must be a positive integer") from error
+
+    if image_size <= 0:
+        raise ValueError("YOLO_INFERENCE_IMAGE_SIZE must be a positive integer")
+    return image_size
 
 
 class InvalidImageError(ValueError):
@@ -40,7 +55,11 @@ class ModelRunner:
         if self.model is None:
             raise RuntimeError("Model has not been loaded")
 
-        results = self.model(image_array, verbose=False)
+        results = self.model(
+            image_array,
+            imgsz=get_inference_image_size(),
+            verbose=False,
+        )
         return results[0]
 
 
