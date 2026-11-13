@@ -26,7 +26,7 @@ spec:
               app.kubernetes.io/name: cloudeco-api
       containers:
         - name: api
-          image: australia-southeast1-docker.pkg.dev/cloudeco-devops/cloudeco-images/cloudeco-api:4a037e345cfb6e445d060e625a02124f405ecef9
+          image: australia-southeast1-docker.pkg.dev/cloudeco-devops/cloudeco-images/cloudeco-api:ddffecb
           imagePullPolicy: IfNotPresent
           env:
             - name: YOLO_CONFIG_DIR
