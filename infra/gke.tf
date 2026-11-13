@@ -41,7 +41,18 @@ resource "google_container_cluster" "primary" {
   }
 
   monitoring_config {
-    enable_components = ["SYSTEM_COMPONENTS"]
+    enable_components = [
+      "SYSTEM_COMPONENTS",
+      "DAEMONSET",
+      "DEPLOYMENT",
+      "HPA",
+      "POD",
+      "STATEFULSET",
+    ]
+
+    managed_prometheus {
+      enabled = true
+    }
   }
 
   resource_labels = {

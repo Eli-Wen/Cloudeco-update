@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: datasource-syncer-init
+  namespace: observability
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      serviceAccountName: grafana-datasource-syncer
+      restartPolicy: Never
+      containers:
+        - name: datasource-syncer-init
+          image: gke.gcr.io/prometheus-engine/datasource-syncer:v0.17.2-gke.2
+          args:
+            - --datasource-uids=gmp
+            - --grafana-api-endpoint=http://grafana.observability.svc:3000
+            - --grafana-api-token=$(GRAFANA_API_TOKEN)
+            - --project-id=cloudeco-devops
+          env:
+            - name: GRAFANA_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-datasource-syncer-token
+                  key: token
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: datasource-syncer
+  namespace: observability
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: grafana-datasource-syncer
+          restartPolicy: Never
+          containers:
+            - name: datasource-syncer
+              image: gke.gcr.io/prometheus-engine/datasource-syncer:v0.17.2-gke.2
+              args:
+                - --datasource-uids=gmp
+                - --grafana-api-endpoint=http://grafana.observability.svc:3000
+                - --grafana-api-token=$(GRAFANA_API_TOKEN)
+                - --project-id=cloudeco-devops
+              env:
+                - name: GRAFANA_API_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: grafana-datasource-syncer-token
+                      key: token

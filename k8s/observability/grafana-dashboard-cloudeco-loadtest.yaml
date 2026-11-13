@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-cloudeco-loadtest
+  namespace: observability
+data:
+  cloudeco-loadtest.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "gmp"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [{"expr": "sum by (path) (rate(cloudeco_http_requests_total{path=~\"/api/(predict|annotate)\"}[1m]))", "legendFormat": "{{path}}"}],
+          "title": "RPS by API route",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "gmp"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "id": 2,
+          "targets": [
+            {"expr": "histogram_quantile(0.50, sum by (le, path) (rate(cloudeco_http_request_duration_seconds_bucket{path=~\"/api/(predict|annotate)\"}[5m])))", "legendFormat": "P50 {{path}}"},
+            {"expr": "histogram_quantile(0.95, sum by (le, path) (rate(cloudeco_http_request_duration_seconds_bucket{path=~\"/api/(predict|annotate)\"}[5m])))", "legendFormat": "P95 {{path}}"},
+            {"expr": "histogram_quantile(0.99, sum by (le, path) (rate(cloudeco_http_request_duration_seconds_bucket{path=~\"/api/(predict|annotate)\"}[5m])))", "legendFormat": "P99 {{path}}"}
+          ],
+          "title": "End-to-end latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "gmp"},
+          "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+          "id": 3,
+          "targets": [{"expr": "sum(rate(cloudeco_http_requests_total{path=~\"/api/(predict|annotate)\", status_code=~\"5..\"}[5m])) / sum(rate(cloudeco_http_requests_total{path=~\"/api/(predict|annotate)\"}[5m]))", "legendFormat": "5xx rate"}],
+          "title": "API error rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "gmp"},
+          "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+          "id": 4,
+          "targets": [{"expr": "histogram_quantile(0.95, sum by (le, route, stage) (rate(cloudeco_inference_duration_seconds_bucket[5m])))", "legendFormat": "P95 {{route}} {{stage}}"}],
+          "title": "YOLO stage P95",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "gmp"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+          "id": 5,
+          "targets": [
+            {"expr": "kube_horizontalpodautoscaler_status_current_replicas{cluster=\"cloudeco-gke\", namespace=\"default\", horizontalpodautoscaler=\"cloudeco-api\"}", "legendFormat": "current"},
+            {"expr": "kube_horizontalpodautoscaler_status_desired_replicas{cluster=\"cloudeco-gke\", namespace=\"default\", horizontalpodautoscaler=\"cloudeco-api\"}", "legendFormat": "desired"}
+          ],
+          "title": "HPA current and desired replicas",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "gmp"},
+          "fieldConfig": {"defaults": {"unit": "cores"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+          "id": 6,
+          "targets": [{"expr": "sum by (pod_name) (rate({\"kubernetes.io/container/cpu/core_usage_time\", monitored_resource=\"k8s_container\", cluster_name=\"cloudeco-gke\", namespace_name=\"default\", container_name=\"api\"}[5m]))", "legendFormat": "{{pod_name}}"}],
+          "title": "API Pod CPU used",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "gmp"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+          "id": 7,
+          "targets": [{"expr": "max by (pod_name) ({\"kubernetes.io/container/memory/used_bytes\", monitored_resource=\"k8s_container\", cluster_name=\"cloudeco-gke\", namespace_name=\"default\", container_name=\"api\"})", "legendFormat": "{{pod_name}}"}],
+          "title": "API Pod memory used",
+          "type": "timeseries"
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["cloudeco", "load-test", "gke"],
+      "templating": {"list": []},
+      "time": {"from": "now-30m", "to": "now"},
+      "timezone": "browser",
+      "title": "CloudEco Load Test Overview",
+      "uid": "cloudeco-loadtest",
+      "version": 1
+    }

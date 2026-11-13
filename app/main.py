@@ -100,6 +100,7 @@ def predict(request: PredictRequest) -> PredictResponse:
     speed_inference_ms = float(result.speed.get("inference", 0.0))
     speed_postprocess_ms = float(result.speed.get("postprocess", 0.0))
     record_inference_timings(
+        route="/api/predict",
         preprocess_ms=speed_preprocess_ms,
         inference_ms=speed_inference_ms,
         postprocess_ms=speed_postprocess_ms,
@@ -128,5 +129,12 @@ def annotate(request: PredictRequest) -> AnnotateResponse:
     except Exception as error:
         logger.exception("Annotation failed")
         raise HTTPException(status_code=500, detail="annotation failed") from error
+
+    record_inference_timings(
+        route="/api/annotate",
+        preprocess_ms=float(result.speed.get("preprocess", 0.0)),
+        inference_ms=float(result.speed.get("inference", 0.0)),
+        postprocess_ms=float(result.speed.get("postprocess", 0.0)),
+    )
 
     return AnnotateResponse(uuid=request.uuid, image=annotated_base64)

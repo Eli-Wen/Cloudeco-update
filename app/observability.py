@@ -57,7 +57,7 @@ HTTP_REQUEST_DURATION_SECONDS = Histogram(
 INFERENCE_DURATION_SECONDS = Histogram(
     "cloudeco_inference_duration_seconds",
     "YOLO inference duration reported by the model.",
-    ["stage"],
+    ["route", "stage"],
 )
 
 
@@ -84,8 +84,14 @@ def record_http_request(
     )
 
 
-def record_inference_timings(*, preprocess_ms: float, inference_ms: float, postprocess_ms: float) -> None:
-    """Record model timing stages without unbounded metric labels."""
-    INFERENCE_DURATION_SECONDS.labels(stage="preprocess").observe(preprocess_ms / 1000)
-    INFERENCE_DURATION_SECONDS.labels(stage="inference").observe(inference_ms / 1000)
-    INFERENCE_DURATION_SECONDS.labels(stage="postprocess").observe(postprocess_ms / 1000)
+def record_inference_timings(
+    *,
+    route: str,
+    preprocess_ms: float,
+    inference_ms: float,
+    postprocess_ms: float,
+) -> None:
+    """Record per-route model stages with bounded labels."""
+    INFERENCE_DURATION_SECONDS.labels(route=route, stage="preprocess").observe(preprocess_ms / 1000)
+    INFERENCE_DURATION_SECONDS.labels(route=route, stage="inference").observe(inference_ms / 1000)
+    INFERENCE_DURATION_SECONDS.labels(route=route, stage="postprocess").observe(postprocess_ms / 1000)

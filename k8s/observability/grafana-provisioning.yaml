@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: observability
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Google Managed Prometheus
+        uid: gmp
+        type: prometheus
+        access: proxy
+        url: http://localhost:9090
+        editable: true
+  dashboard-provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: CloudEco
+        orgId: 1
+        folder: CloudEco
+        type: file
+        disableDeletion: true
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
