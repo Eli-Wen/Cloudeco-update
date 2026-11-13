@@ -1,0 +1,14 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: cloudeco-api
+  labels:
+    app.kubernetes.io/name: cloudeco-api
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudeco-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

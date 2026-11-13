@@ -14,7 +14,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: locust
-          image: australia-southeast1-docker.pkg.dev/cloudeco-devops/cloudeco-images/cloudeco-locust:5fb2d35041b52a8180f2f77aba823f124e44d930
+          image: australia-southeast1-docker.pkg.dev/cloudeco-devops/cloudeco-images/cloudeco-locust:d7c90bdbdc10d4f7af375442d89e7bee76592cd4
           imagePullPolicy: IfNotPresent
           env:
             - name: CLOUDECO_TEST_IMAGE_DIR
@@ -24,12 +24,16 @@ spec:
           args:
             - -f
             - /mnt/locust/locustfile.py
-            - --headless
             - --host=http://cloudeco-api:80
-            - --users=12
-            - --spawn-rate=2
+            - --users=60
+            - --spawn-rate=10
             - --run-time=8m
-            - --only-summary
+            - --autostart
+            - --autoquit=10
+            - --web-port=8089
+          ports:
+            - name: web
+              containerPort: 8089
           resources:
             requests:
               cpu: 250m
