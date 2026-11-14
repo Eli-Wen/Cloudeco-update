@@ -36,7 +36,7 @@ jobs:
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ env.PROJECT_ID }}
-          workload_identity_provider: projects/755473269007/locations/global/workloadIdentityPools/cloudeco-github/providers/github
+          workload_identity_provider: projects/75547326900/locations/global/workloadIdentityPools/cloudeco-github/providers/github
           service_account: cloudeco-github-deployer@cloudeco-devops.iam.gserviceaccount.com
 
       - name: Set up Google Cloud CLI
