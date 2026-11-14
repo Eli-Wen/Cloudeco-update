@@ -1,0 +1,87 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cloudeco-production-deployment
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: cloudeco-devops
+  REGION: australia-southeast1
+  CLUSTER_NAME: cloudeco-gke
+  ARTIFACT_REGISTRY_HOST: australia-southeast1-docker.pkg.dev
+  IMAGE_URI: australia-southeast1-docker.pkg.dev/cloudeco-devops/cloudeco-images/cloudeco-api:${{ github.sha }}
+  DEPLOYMENT_NAME: cloudeco-api
+  CONTAINER_NAME: api
+
+jobs:
+  deploy:
+    name: Deploy and verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: projects/755473269007/locations/global/workloadIdentityPools/cloudeco-github/providers/github
+          service_account: cloudeco-github-deployer@cloudeco-devops.iam.gserviceaccount.com
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Artifact Registry authentication
+        run: gcloud auth configure-docker "$ARTIFACT_REGISTRY_HOST" --quiet
+
+      - name: Build and push immutable API image
+        run: |
+          docker build --tag "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v3
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          location: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+          use_dns_based_endpoint: "true"
+
+      - name: Record current image
+        id: previous-image
+        run: |
+          PREVIOUS_IMAGE="$(kubectl get deployment "$DEPLOYMENT_NAME" -o jsonpath='{.spec.template.spec.containers[?(@.name=="api")].image}')"
+          test -n "$PREVIOUS_IMAGE"
+          echo "image=$PREVIOUS_IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy, verify, and roll back on failure
+        env:
+          PREVIOUS_IMAGE: ${{ steps.previous-image.outputs.image }}
+        run: |
+          rollback() {
+            kubectl set image "deployment/$DEPLOYMENT_NAME" "$CONTAINER_NAME=$PREVIOUS_IMAGE"
+            kubectl rollout status "deployment/$DEPLOYMENT_NAME" --timeout=10m
+          }
+
+          kubectl set image "deployment/$DEPLOYMENT_NAME" "$CONTAINER_NAME=$IMAGE_URI"
+          if ! kubectl rollout status "deployment/$DEPLOYMENT_NAME" --timeout=10m; then
+            rollback
+            exit 1
+          fi
+
+          POD_NAME="$(kubectl get pods -l app.kubernetes.io/name=cloudeco-api -o jsonpath='{.items[0].metadata.name}')"
+          if ! kubectl exec "$POD_NAME" -- python -c "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8000/health', timeout=10).status == 200"; then
+            rollback
+            exit 1
+          fi
