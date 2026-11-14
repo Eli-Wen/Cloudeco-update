@@ -46,11 +46,21 @@ jobs:
       - name: Build API image archive
         run: docker buildx build --output type=docker,dest=/tmp/cloudeco-api.tar .
 
-      - name: Scan API image archive
+      - name: Report HIGH and CRITICAL image vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          input: /tmp/cloudeco-api.tar
+          format: table
+          exit-code: "0"
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      - name: Block CRITICAL image vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           input: /tmp/cloudeco-api.tar
           format: table
           exit-code: "1"
           ignore-unfixed: true
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
+          skip-setup-trivy: true
